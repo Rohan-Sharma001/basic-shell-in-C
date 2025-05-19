@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
       return 0;
     }
     else if (!strncmp(input, echo_str, 4)) {
-      printf("%s", input[5]);
+      printf("%s", input+5);
     }
     else {
       printf("%s: command not found\n", input);
