@@ -17,8 +17,12 @@ int main(int argc, char *argv[]) {
     
     //exit
     char *exit_str = "exit 0";
+    char *echo_str = "echo";
     if (!strcmp(input, exit_str)) {
       return 0;
+    }
+    else if (!strcmp(input, echo_str)) {
+      printf("%s", s[5]);
     }
     printf("%s: command not found\n", input);
   }
