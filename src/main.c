@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
     if (!strcmp(input, exit_str)) {
       return 0;
     }
-    else if (!strcmp(input, echo_str)) {
+    else if (!strncmp(input, echo_str, 4)) {
       printf("%s", input[5]);
     }
     else {
