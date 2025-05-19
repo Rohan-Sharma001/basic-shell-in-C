@@ -14,6 +14,12 @@ int main(int argc, char *argv[]) {
     printf("$ ");
     fgets(input, 100, stdin);
     input[strlen(input) - 1] = '\0';
+    
+    //exit
+    char *exit_str = "exit 0";
+    if (!strcmp(input, exit_str)) {
+      return 0;
+    }
     printf("%s: command not found\n", input);
   }
   return 0;
