@@ -24,7 +24,9 @@ int main(int argc, char *argv[]) {
     else if (!strcmp(input, echo_str)) {
       printf("%s", s[5]);
     }
-    printf("%s: command not found\n", input);
+    else {
+      printf("%s: command not found\n", input);
+    }
   }
   return 0;
 }
