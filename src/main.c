@@ -6,14 +6,15 @@
 
 int default_return = -1;
 int default_fail = -2;
-char *commands[] = {"exit", "echo", "type", "pwd"};
+char *commands[] = {"exit", "echo", "type", "pwd", "cd"};
 int invalid_command(char *inputt);
 int echo(char *inputt);
 int exitt(char *inputt);
 int typef(char *inputt);
 int runExecutable(char *inputt);
+int cd(char *inputt);
 int pwd(char *input);
-int (*func[]) (char *) = {exitt, echo, typef, pwd};
+int (*func[]) (char *) = {exitt, echo, typef, pwd, cd};
 
 
 
@@ -50,7 +51,18 @@ int main(int argc, char *argv[]) {
 /*
   SHELL BUILTIN COMMANDS
 */
-int pwd(char *input) {
+int cd(char *inputt) {
+  int status = chdir(inputt + 3);
+  if (!status) {
+    return default_return;
+  } 
+  else {
+    printf("cd: %s: No such file or directory\n", inputt+3);
+    return default_fail;
+  }
+}
+
+int pwd(char *inputt) {
   char cwd[1024];
   getcwd(cwd, sizeof(cwd));
   printf("%s\n", cwd);
