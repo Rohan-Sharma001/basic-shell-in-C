@@ -51,7 +51,7 @@ int typef(char *inputt) {
       if (!strcmp(inputt+5, commands[i])) {printf("%s is a shell builtin\n", commands[i]); found = 1; break;}
     }
     if (!found) {
-      printf("%s: not found", inputt+5);
+      printf("%s: not found\n", inputt+5);
     }
   }
   return default_return;
