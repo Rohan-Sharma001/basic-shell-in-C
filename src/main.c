@@ -58,7 +58,7 @@ int cd(char *inputt) {
     strcat(homeDir, inputt+3);
     changeto = homeDir;
   }
-  else {changeto = inputt + 3};
+  else {changeto = inputt + 3;}
   int status = chdir(changeto);
   if (!status) {
     return default_return;
