@@ -2,13 +2,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 int default_return = -1;
+int default_fail = -2;
 char *commands[] = {"exit", "echo", "type"};
 int invalid_command(char *inputt);
 int echo(char *inputt);
 int exitt(char *inputt);
 int typef(char *inputt);
+int runExecutable(char *inputt);
 int (*func[]) (char *) = {exitt, echo, typef};
 
 
@@ -28,18 +31,77 @@ int main(int argc, char *argv[]) {
       if (!strncmp(input, commands[i], strlen(commands[i]))) {ret = func[i](input); executed = 1; break;}
     }
     if (!executed) {
+      ret = runExecutable(input);
+      if (ret == default_return) {executed = 1;}
+    }
+    if (!executed) {
       invalid_command(input);
     }
-    else if (ret != default_return) {
+    else if (ret != default_return && ret != default_fail) {
       return ret;
     }
   }
   return 0;
 }
 
+
+
+/*
+  SHELL BUILTIN COMMANDS
+*/
 int invalid_command(char *inputt) {
   printf("%s: command not found\n", inputt);
   return default_return;
+}
+
+int runExecutable(char *inputt) {
+  int argc = 1;
+  for (int i = 0; i < strlen(inputt); i++) {if (inputt[i] == ' ') argc++;}
+  char **executer = (char **)malloc((argc+1)*(sizeof(char *)));
+
+  char *inputCpy = strdup(inputt);
+  char *inputToken = strtok(inputCpy, " ");
+
+  int j = 1;
+  while (j <= argc) {
+    executer[j-1] = strdup(inputToken);
+    inputToken = strtok(NULL, " ");
+    j++;
+  }
+  //strcat(exec, executer[0]);
+  int output = -1;
+  //PATH LOOP
+  char *pathVar = strdup(getenv("PATH"));
+  char *token = strtok(pathVar, ":");
+  
+  int retVal = default_fail;
+  while (token != NULL) {
+    int found = 0;
+    if (output != -1) break;
+    char *fullPath = malloc(strlen(token) + 1 + strlen(executer[0]) + 1);
+    sprintf(fullPath, "%s/%s", token, executer[0]);
+    if (!access(fullPath, F_OK)) {
+      found = 1;
+      int pid = fork();
+      if (pid == 0) {
+        execv(fullPath, executer);
+      }
+      else if (pid > 0) {
+        int status;
+        waitpid(0, &status, 0);
+      }
+      retVal = default_return;
+    }
+    free(fullPath);
+    token = strtok(NULL, ":");
+    if (found) break;
+  }
+  for (int i = 0; i < argc; i++) {
+    free(executer[i]);
+  }
+
+  free(executer);
+  return retVal;
 }
 
 int typef(char *inputt) {
