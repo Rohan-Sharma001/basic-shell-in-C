@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int default_return = -1;
 char *commands[] = {"exit", "echo", "type"};
@@ -49,6 +50,26 @@ int typef(char *inputt) {
     int found = 0;
     for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
       if (!strcmp(inputt+5, commands[i])) {printf("%s is a shell builtin\n", commands[i]); found = 1; break;}
+    }
+    //check in path if not a builtin
+    if (!found) {
+      char *pathVar = strdup(getenv("PATH"));
+      
+      char *token = strtok(pathVar, ":");
+
+      while (token != NULL) {
+        char *fullPath = malloc(strlen(token) + 1 + strlen(inputt+5) + 1);
+        sprintf(fullPath, "%s/%s", token, inputt+5);
+
+        if (!access(fullPath, F_OK)) {
+          printf("%s is %s\n", inputt+5, fullPath);
+          found = 1;
+          free(fullPath);
+          break;
+        }
+        free(fullPath);
+        token = strtok(NULL, ":");
+      }
     }
     if (!found) {
       printf("%s: not found\n", inputt+5);
