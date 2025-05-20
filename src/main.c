@@ -52,7 +52,8 @@ int main(int argc, char *argv[]) {
   SHELL BUILTIN COMMANDS
 */
 int cd(char *inputt) {
-  char homeDir[1024] = strdup(getenv("HOME"));
+  char homeDir[1024];
+  strcpy(homeDir, getenv("HOME"));
   char *changeto;
   if (inputt[3] == '~') {
     strcat(homeDir, inputt+3);
