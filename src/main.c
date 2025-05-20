@@ -6,13 +6,14 @@
 
 int default_return = -1;
 int default_fail = -2;
-char *commands[] = {"exit", "echo", "type"};
+char *commands[] = {"exit", "echo", "type", "pwd"};
 int invalid_command(char *inputt);
 int echo(char *inputt);
 int exitt(char *inputt);
 int typef(char *inputt);
 int runExecutable(char *inputt);
-int (*func[]) (char *) = {exitt, echo, typef};
+int pwd(char *input);
+int (*func[]) (char *) = {exitt, echo, typef, pwd};
 
 
 
@@ -49,6 +50,13 @@ int main(int argc, char *argv[]) {
 /*
   SHELL BUILTIN COMMANDS
 */
+int pwd(char *input) {
+  char cwd[1024];
+  getcwd(cwd, sizeof(cwd));
+  printf("%s\n", cwd);
+  return default_return;
+}
+
 int invalid_command(char *inputt) {
   printf("%s: command not found\n", inputt);
   return default_return;
