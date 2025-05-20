@@ -56,7 +56,7 @@ int cd(char *inputt) {
   strcpy(homeDir, getenv("HOME"));
   char *changeto;
   if (inputt[3] == '~') {
-    strcat(homeDir, inputt+3);
+    strcat(homeDir, inputt+4);
     changeto = homeDir;
   }
   else {changeto = inputt + 3;}
@@ -65,7 +65,7 @@ int cd(char *inputt) {
     return default_return;
   } 
   else {
-    printf("cd: %s: No such file or directory\n", inputt+3);
+    printf("cd: %s: No such file or directory\n", changeto);
     return default_fail;
   }
 }
