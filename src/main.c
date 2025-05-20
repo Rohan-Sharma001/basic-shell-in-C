@@ -52,7 +52,14 @@ int main(int argc, char *argv[]) {
   SHELL BUILTIN COMMANDS
 */
 int cd(char *inputt) {
-  int status = chdir(inputt + 3);
+  char homeDir[1024] = strdup(getenv("HOME"));
+  char *changeto;
+  if (inputt[3] == '~') {
+    strcat(homeDir, inputt+3);
+    changeto = homeDir;
+  }
+  else {changeto = inputt + 3};
+  int status = chdir(changeto);
   if (!status) {
     return default_return;
   } 
