@@ -83,6 +83,7 @@ char **argSeparate(char *S) {
           if (S[k] == '\'' && !(inDquotes)) {inquotes ^= 1;}
           else if (S[k] == '\"' && !(inquotes)) {inDquotes ^= 1;}
           else if (S[k] == '\\' && !(inquotes) && !(inDquotes) && k < j-1) {k++; buff[strlen(buff)] = S[k];}
+          else if (S[k] == '\\' && (S[k+1] == '\\' || S[k] == '$' || S[k+1] == '\"' || S[k+1] == '\n') && inDquotes) {k++;buff[strlen(buff)] = S[k];}
           else buff[strlen(buff)] = S[k];
       }
     //printf("%s\n", buff);
