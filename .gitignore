@@ -51,5 +51,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+src/testt.c
+
 build
 vcpkg_installed

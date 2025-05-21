@@ -4,62 +4,96 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
+const int maxBuff = 1024;
+
 int default_return = -1;
 int default_fail = -2;
 char *commands[] = {"exit", "echo", "type", "pwd", "cd"};
-int invalid_command(char *inputt);
-int echo(char *inputt);
-int exitt(char *inputt);
-int typef(char *inputt);
-int runExecutable(char *inputt);
-int cd(char *inputt);
-int pwd(char *input);
-int (*func[]) (char *) = {exitt, echo, typef, pwd, cd};
+int invalid_command(char **inputt, char *buff);
+int echo(char **inputt, char *buff);
+int exitt(char **inputt, char *buff);
+int typef(char **inputt, char *buff);
+int runExecutable(char **inputt, char *buff);
+int pwd(char **inputt, char *buff);
+int cd(char **inputt, char *cdto);
+char **argSeparate(char *S);
+int (*func[]) (char **, char *) = {exitt, echo, typef, pwd, cd};
 
 
 
 int main(int argc, char *argv[]) {
   setbuf(stdout, NULL);
 
-  char input[100];
+  char input[maxBuff];
   while (1) { 
     printf("$ ");
     fgets(input, 100, stdin);
     input[strlen(input) - 1] = '\0';
 
-    int executed = 0;
-    int ret;
+    char **argss = argSeparate(input);
+    char buff[maxBuff]; memset(buff, '\0', maxBuff);
+    char *space = " ";
+    for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
+      strcat(buff, argss[i]);
+      strcat(buff, space);
+    }
+    buff[strlen(buff) - 1] = '\0';
+    int returnVal, executed = 0;
     for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
-      if (!strncmp(input, commands[i], strlen(commands[i]))) {ret = func[i](input); executed = 1; break;}
+      if (!strcmp(argss[0], commands[i])) {returnVal = func[i](argss, buff); executed = 1; break;}
     }
     if (!executed) {
-      ret = runExecutable(input);
-      if (ret == default_return) {executed = 1;}
+      returnVal = runExecutable(argss, buff);
     }
-    if (!executed) {
-      invalid_command(input);
-    }
-    else if (ret != default_return && ret != default_fail) {
-      return ret;
+    if (returnVal != default_fail && returnVal != default_return) {
+      return returnVal;
     }
   }
-  return 0;
 }
 
 
-
+/*
+  ARGUMENT SEPARATOR
+*/
+char **argSeparate(char *S) {
+  char **arr = (char**)calloc(maxBuff, sizeof(char));
+  char buff[maxBuff];
+  int t = 0;
+  for (int i = 0; i < strlen(S); i++) {
+      memset(buff, '\0', sizeof(buff));
+      buff[0] = '\0';
+      if (S[i] == ' ') continue;
+      int inquotes = 0;
+      int j;
+      for (j = i; j < strlen(S); j++) {
+          if (S[j] == '\'') {inquotes ^= 1;}
+          else if (S[j] == ' ' && !inquotes) {
+              break;
+          }
+      }
+      for (int k = i; k < j; k++) {
+          if (S[k] != '\'') {buff[strlen(buff)] = S[k];}
+      }
+      //printf("%s\n", buff);
+      arr[t] = strdup(buff);
+      i = j;
+      t++;
+  }
+  return arr;
+}
 /*
   SHELL BUILTIN COMMANDS
 */
-int cd(char *inputt) {
+
+int cd(char **inputt, char *cdto) {
   char homeDir[1024];
   strcpy(homeDir, getenv("HOME"));
   char *changeto;
-  if (inputt[3] == '~') {
-    strcat(homeDir, inputt+4);
+  if (cdto[3] == '~') {
+    strcat(homeDir, cdto+4);
     changeto = homeDir;
   }
-  else {changeto = inputt + 3;}
+  else {changeto = cdto+3;}
   int status = chdir(changeto);
   if (!status) {
     return default_return;
@@ -70,37 +104,26 @@ int cd(char *inputt) {
   }
 }
 
-int pwd(char *inputt) {
+int pwd(char **inputt, char *buff) {
   char cwd[1024];
   getcwd(cwd, sizeof(cwd));
   printf("%s\n", cwd);
   return default_return;
 }
 
-int invalid_command(char *inputt) {
-  printf("%s: command not found\n", inputt);
+int invalid_command(char **inputt, char *buff) {
+  printf("%s: command not found\n", buff);
   return default_return;
 }
 
-int runExecutable(char *inputt) {
-  int argc = 1;
-  for (int i = 0; i < strlen(inputt); i++) {if (inputt[i] == ' ') argc++;}
-  char **executer = (char **)malloc((argc+1)*(sizeof(char *)));
+int runExecutable(char **executer, char *buff) {
 
-  char *inputCpy = strdup(inputt);
-  char *inputToken = strtok(inputCpy, " ");
-
-  int j = 1;
-  while (j <= argc) {
-    executer[j-1] = strdup(inputToken);
-    inputToken = strtok(NULL, " ");
-    j++;
-  }
   //strcat(exec, executer[0]);
   int output = -1;
   //PATH LOOP
   char *pathVar = strdup(getenv("PATH"));
   char *token = strtok(pathVar, ":");
+  int foundSomething = 0;
   
   int retVal = default_fail;
   while (token != NULL) {
@@ -122,24 +145,22 @@ int runExecutable(char *inputt) {
     }
     free(fullPath);
     token = strtok(NULL, ":");
+    foundSomething = foundSomething | found;
     if (found) break;
   }
-  for (int i = 0; i < argc; i++) {
-    free(executer[i]);
+  if (!foundSomething) {
+    invalid_command(executer, buff);
   }
-
-  free(executer);
   return retVal;
 }
 
-int typef(char *inputt) {
-  if (strlen(inputt) > 4 && inputt[4] != ' ') {
-    invalid_command(inputt);
-  }
-  else {
+int typef(char **inputt, char *buff) {
+
+  for (int i = 1; i < maxBuff, inputt[i] != NULL; i++) {
+    char *functionName = inputt[i];
     int found = 0;
     for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
-      if (!strcmp(inputt+5, commands[i])) {printf("%s is a shell builtin\n", commands[i]); found = 1; break;}
+      if (!strcmp(functionName, commands[i])) {printf("%s is a shell builtin\n", commands[i]); found = 1; break;}
     }
     //check in path if not a builtin
     if (!found) {
@@ -148,11 +169,11 @@ int typef(char *inputt) {
       char *token = strtok(pathVar, ":");
 
       while (token != NULL) {
-        char *fullPath = malloc(strlen(token) + 1 + strlen(inputt+5) + 1);
-        sprintf(fullPath, "%s/%s", token, inputt+5);
+        char *fullPath = malloc(strlen(token) + 1 + strlen(functionName) + 1);
+        sprintf(fullPath, "%s/%s", token, functionName);
 
         if (!access(fullPath, F_OK)) {
-          printf("%s is %s\n", inputt+5, fullPath);
+          printf("%s is %s\n", inputt[i], fullPath);
           found = 1;
           free(fullPath);
           break;
@@ -162,25 +183,20 @@ int typef(char *inputt) {
       }
     }
     if (!found) {
-      printf("%s: not found\n", inputt+5);
+      printf("%s: not found\n", functionName);
     }
   }
   return default_return;
 }
 
-int exitt(char *inputt) {
-  char *exit_str = "exit 0";
-  if (!strcmp(inputt, exit_str)) {
-    return 0;
+int exitt(char **inputt, char *buff) {
+  if (inputt[1] != NULL) {
+    return atoi(inputt[1]);
   }
-  else {
-    invalid_command(inputt);
-  }
-  return default_return;
+  return 0;
 }
 
-int echo(char *inputt) {
-  printf("%s\n", inputt+5);
+int echo(char **inputt, char *buff) {
+  printf("%s\n", buff+5);
   return default_return;
 }
-
