@@ -73,6 +73,7 @@ char **argSeparate(char *S) {
       for (j = i; j < strlen(S); j++) {
         if (S[j] == '\'' && !(inDquotes)) {inquotes ^= 1;}
         else if (S[j] == '\"' && !(inquotes)) {inDquotes ^= 1;}
+        else if (S[j] == '\\' && !(inquotes) && !(inDquotes) && j < strlen(S)-1) {j++;}
         else if (S[j] == ' ' && !inquotes && !inDquotes) {
             break;
         }
