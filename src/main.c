@@ -45,6 +45,10 @@ int main(int argc, char *argv[]) {
     if (!executed) {
       returnVal = runExecutable(argss, buff);
     }
+    for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
+      free(argss[i]);
+    }
+    free(argss);
     if (returnVal != default_fail && returnVal != default_return) {
       return returnVal;
     }
@@ -64,17 +68,22 @@ char **argSeparate(char *S) {
       buff[0] = '\0';
       if (S[i] == ' ') continue;
       int inquotes = 0;
+      int inDquotes = 0;
       int j;
       for (j = i; j < strlen(S); j++) {
-          if (S[j] == '\'') {inquotes ^= 1;}
-          else if (S[j] == ' ' && !inquotes) {
-              break;
-          }
+        if (S[j] == '\'' && !(inDquotes)) {inquotes ^= 1;}
+        else if (S[j] == '\"' && !(inquotes)) {inDquotes ^= 1;}
+        else if (S[j] == ' ' && !inquotes && !inDquotes) {
+            break;
+        }
       }
+      inquotes = 0, inDquotes = 0;
       for (int k = i; k < j; k++) {
-          if (S[k] != '\'') {buff[strlen(buff)] = S[k];}
+          if (S[k] == '\'' && !(inDquotes)) {inquotes ^= 1;}
+          else if (S[k] == '\"' && !(inquotes)) {inDquotes ^= 1;}
+          else buff[strlen(buff)] = S[k];
       }
-      //printf("%s\n", buff);
+    //printf("%s\n", buff);
       arr[t] = strdup(buff);
       i = j;
       t++;
