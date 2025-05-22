@@ -20,7 +20,7 @@ int invalid_command(char **inputt, char *buff);
 int echo(char **inputt, char *buff);
 int exitt(char **inputt, char *buff);
 int typef(char **inputt, char *buff);
-int runExecutable(char **inputt, char *buff);
+int runExecutable(char **inputt, char *buff, int prevOperator);
 int pwd(char **inputt, char *buff);
 int cd(char **inputt, char *cdto);
 argStruct *argSeparate(char *S);
@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
           if (!strcmp(argss[0], commands[i])) {returnVal = func[i](argss, buff); executed = 1; break;}
         }
         if (!executed) {
-          returnVal = runExecutable(argss, buff);
+          returnVal = runExecutable(argss, buff, prevOperator);
         }
         prevOperator = argarr[it].operator;
         for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
@@ -120,10 +120,11 @@ argStruct *argSeparate(char *S) {
   //printf("%s\n", buff);
     
     i = j;
-    if (!strcmp(buff, ">") || !strcmp(buff, "1>")) {
+    if (!strcmp(buff, ">") || !strcmp(buff, "1>") || !strcmp(buff, "2>")) {
       argStructArray[argStructArrayIndex].command = malloc(maxBuff);
       memcpy(argStructArray[argStructArrayIndex].command, arr, maxBuff);
-      argStructArray[argStructArrayIndex].operator = 0;
+      if (!strcmp(buff,"2>")) argStructArray[argStructArrayIndex].operator = 1;
+      else argStructArray[argStructArrayIndex].operator = 0;
       argStructArrayIndex++;
       t = 0;
       memset(arr, '\0', maxBuff);
@@ -172,7 +173,7 @@ int invalid_command(char **inputt, char *buff) {
   return default_return;
 }
 
-int runExecutable(char **executer, char *buff) {
+int runExecutable(char **executer, char *buff, int prevOperator) {
 
   //strcat(exec, executer[0]);
   char execBuff[4096]; memset(execBuff, '\0', sizeof(execBuff));
@@ -207,14 +208,18 @@ int runExecutable(char **executer, char *buff) {
       // HANDLE CHILD PROCESS
       else if (pid == 0) {
         close(pipefd[0]);
-        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
-          perror("dup2");
-          _exit(EXIT_FAILURE);
+        if (prevOperator == 0) {
+          if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+            perror("dup2");
+            _exit(EXIT_FAILURE);
+          }
         }
-        /*if (dup2(pipefd[1], STDERR_FILENO) == -1) {
-          perror("dup2");
-          _exit(EXIT_FAILURE); // Use _exit in child
-        }*/
+        else if (prevOperator == 1) {
+          if (dup2(pipefd[1], STDERR_FILENO) == -1) {
+            perror("dup2");
+            _exit(EXIT_FAILURE); // Use _exit in child
+          }
+        }
         close (pipefd[1]);
         execv(fullPath, executer);
         perror("execvp failed");
