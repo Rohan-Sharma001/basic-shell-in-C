@@ -6,6 +6,13 @@
 
 const int maxBuff = 1024;
 
+typedef struct argStruct {
+  char **command;
+  int operator;
+} argStruct;
+
+char funcOutput[1024];
+
 int default_return = -1;
 int default_fail = -2;
 char *commands[] = {"exit", "echo", "type", "pwd", "cd"};
@@ -16,7 +23,7 @@ int typef(char **inputt, char *buff);
 int runExecutable(char **inputt, char *buff);
 int pwd(char **inputt, char *buff);
 int cd(char **inputt, char *cdto);
-char **argSeparate(char *S);
+argStruct *argSeparate(char *S);
 int (*func[]) (char **, char *) = {exitt, echo, typef, pwd, cd};
 
 
@@ -30,27 +37,49 @@ int main(int argc, char *argv[]) {
     fgets(input, 100, stdin);
     input[strlen(input) - 1] = '\0';
 
-    char **argss = argSeparate(input);
+    argStruct *argarr = argSeparate(input);
     char buff[maxBuff]; memset(buff, '\0', maxBuff);
     char *space = " ";
-    for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
-      strcat(buff, argss[i]);
-      strcat(buff, space);
+    int prevOperator = -2;
+    int it = 0;
+
+    while (prevOperator != -1) {
+      if (prevOperator == 0) {
+        FILE *fileptr = fopen(*(argarr[it].command), "w");
+        fprintf(fileptr, "%s", funcOutput);
+        fclose(fileptr);
+        memset(funcOutput, '\0', sizeof(funcOutput));
+        prevOperator = argarr[it].operator;
+        it++;
+      }
+      else {
+        char **argss = argarr[it].command;
+        for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
+          strcat(buff, argss[i]);
+          strcat(buff, space);
+        }
+        buff[strlen(buff) - 1] = '\0';
+        int returnVal, executed = 0;
+        for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
+          if (!strcmp(argss[0], commands[i])) {returnVal = func[i](argss, buff); executed = 1; break;}
+        }
+        if (!executed) {
+          returnVal = runExecutable(argss, buff);
+        }
+        prevOperator = argarr[it].operator;
+        for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
+          free(argss[i]);
+        }
+        free(argss);
+        if (returnVal != default_fail && returnVal != default_return) {
+          return returnVal;
+        }
+        it++;
+      }
     }
-    buff[strlen(buff) - 1] = '\0';
-    int returnVal, executed = 0;
-    for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
-      if (!strcmp(argss[0], commands[i])) {returnVal = func[i](argss, buff); executed = 1; break;}
-    }
-    if (!executed) {
-      returnVal = runExecutable(argss, buff);
-    }
-    for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
-      free(argss[i]);
-    }
-    free(argss);
-    if (returnVal != default_fail && returnVal != default_return) {
-      return returnVal;
+    if (prevOperator == -1) {
+      printf("%s", funcOutput);
+      memset(funcOutput, '\0', sizeof(funcOutput));
     }
   }
 }
@@ -59,39 +88,54 @@ int main(int argc, char *argv[]) {
 /*
   ARGUMENT SEPARATOR
 */
-char **argSeparate(char *S) {
+argStruct *argSeparate(char *S) {
+  argStruct *argStructArray = calloc(10, sizeof(argStruct));
+  int argStructArrayIndex = 0;
+
   char **arr = (char**)calloc(maxBuff, sizeof(char));
   char buff[maxBuff];
   int t = 0;
   for (int i = 0; i < strlen(S); i++) {
-      memset(buff, '\0', sizeof(buff));
-      buff[0] = '\0';
-      if (S[i] == ' ') continue;
-      int inquotes = 0;
-      int inDquotes = 0;
-      int j;
-      for (j = i; j < strlen(S); j++) {
-        if (S[j] == '\'' && !(inDquotes)) {inquotes ^= 1;}
-        else if (S[j] == '\"' && !(inquotes)) {inDquotes ^= 1;}
-        else if (S[j] == '\\' && !(inquotes) && !(inDquotes) && j < strlen(S)-1) {j++;}
-        else if (S[j] == ' ' && !inquotes && !inDquotes) {
-            break;
-        }
-      }
-      inquotes = 0, inDquotes = 0;
-      for (int k = i; k < j; k++) {
-          if (S[k] == '\'' && !(inDquotes)) {inquotes ^= 1;}
-          else if (S[k] == '\"' && !(inquotes)) {inDquotes ^= 1;}
-          else if (S[k] == '\\' && !(inquotes) && !(inDquotes) && k < j-1) {k++; buff[strlen(buff)] = S[k];}
-          else if (S[k] == '\\' && (S[k+1] == '\\' || S[k] == '$' || S[k+1] == '\"' || S[k+1] == '\n') && inDquotes) {k++;buff[strlen(buff)] = S[k];}
-          else buff[strlen(buff)] = S[k];
-      }
-    //printf("%s\n", buff);
-      arr[t] = strdup(buff);
-      i = j;
-      t++;
+    memset(buff, '\0', sizeof(buff));
+    buff[0] = '\0';
+    if (S[i] == ' ') continue;
+    int inquotes = 0;
+    int inDquotes = 0;
+    int j;
+    for (j = i; j < strlen(S); j++) {
+      if (S[j] == '\'' && !(inDquotes)) {inquotes ^= 1;}
+      else if (S[j] == '\"' && !(inquotes)) {inDquotes ^= 1;}
+      else if (S[j] == '\\' && !(inquotes) && !(inDquotes) && j < strlen(S)-1) {j++;}
+      else if (S[j] == ' ' && !inquotes && !inDquotes) {break;}
+    }
+    
+    inquotes = 0, inDquotes = 0;
+    for (int k = i; k < j; k++) {
+        if (S[k] == '\'' && !(inDquotes)) {inquotes ^= 1;}
+        else if (S[k] == '\"' && !(inquotes)) {inDquotes ^= 1;}
+        else if (S[k] == '\\' && !(inquotes) && !(inDquotes) && k < j-1) {k++; buff[strlen(buff)] = S[k];}
+        else if (S[k] == '\\' && (S[k+1] == '\\' || S[k] == '$' || S[k+1] == '\"' || S[k+1] == '\n') && inDquotes) {k++;buff[strlen(buff)] = S[k];}
+        else buff[strlen(buff)] = S[k];
+    }
+  //printf("%s\n", buff);
+    
+    i = j;
+    if (!strcmp(buff, ">") || !strcmp(buff, "1>")) {
+      argStructArray[argStructArrayIndex].command = malloc(maxBuff);
+      memcpy(argStructArray[argStructArrayIndex].command, arr, maxBuff);
+      argStructArray[argStructArrayIndex].operator = 0;
+      argStructArrayIndex++;
+      t = 0;
+      memset(arr, '\0', maxBuff);
+    } else {arr[t] = strdup(buff);t++;}
+
+    if (i == strlen(S)) {
+      argStructArray[argStructArrayIndex].command = malloc(maxBuff);
+      memcpy(argStructArray[argStructArrayIndex].command, arr, maxBuff);
+      argStructArray[argStructArrayIndex].operator = -1;
+    }
   }
-  return arr;
+  return argStructArray;
 }
 /*
   SHELL BUILTIN COMMANDS
@@ -111,7 +155,7 @@ int cd(char **inputt, char *cdto) {
     return default_return;
   } 
   else {
-    printf("cd: %s: No such file or directory\n", changeto);
+    sprintf(funcOutput, "cd: %s: No such file or directory\n", changeto);
     return default_fail;
   }
 }
@@ -119,18 +163,19 @@ int cd(char **inputt, char *cdto) {
 int pwd(char **inputt, char *buff) {
   char cwd[1024];
   getcwd(cwd, sizeof(cwd));
-  printf("%s\n", cwd);
+  sprintf(funcOutput, "%s\n", cwd);
   return default_return;
 }
 
 int invalid_command(char **inputt, char *buff) {
-  printf("%s: command not found\n", buff);
+  sprintf(funcOutput, "%s: command not found\n", buff);
   return default_return;
 }
 
 int runExecutable(char **executer, char *buff) {
 
   //strcat(exec, executer[0]);
+  char execBuff[4096]; memset(execBuff, '\0', sizeof(execBuff));
   int output = -1;
   //PATH LOOP
   char *pathVar = strdup(getenv("PATH"));
@@ -145,13 +190,53 @@ int runExecutable(char **executer, char *buff) {
     sprintf(fullPath, "%s/%s", token, executer[0]);
     if (!access(fullPath, F_OK)) {
       found = 1;
-      int pid = fork();
-      if (pid == 0) {
-        execv(fullPath, executer);
+
+      //  CREATE PIPE
+      int pipefd[2];
+      if (pipe(pipefd) == -1) {
+        perror("pipe");
+        exit(EXIT_FAILURE);
       }
-      else if (pid > 0) {
+
+      //  FORK TO CREATE CHILD
+      int pid = fork();
+      if (pid == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+      }
+      // HANDLE CHILD PROCESS
+      else if (pid == 0) {
+        close(pipefd[0]);
+        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+          perror("dup2");
+          _exit(EXIT_FAILURE);
+        }
+        /*if (dup2(pipefd[1], STDERR_FILENO) == -1) {
+          perror("dup2");
+          _exit(EXIT_FAILURE); // Use _exit in child
+        }*/
+        close (pipefd[1]);
+        execv(fullPath, executer);
+        perror("execvp failed");
+        _exit(EXIT_FAILURE);
+      }
+      //  HANDLE PARENT PROCESS
+      else {
+        ssize_t bytes_read_total = 0;
+        ssize_t current_bytes_read;
+
         int status;
-        waitpid(0, &status, 0);
+        close(pipefd[1]);
+        while (bytes_read_total < sizeof(execBuff) - 1 && 
+               (current_bytes_read = read(pipefd[0], execBuff + bytes_read_total, sizeof(execBuff) - 1 - bytes_read_total)) > 0) {
+            bytes_read_total += current_bytes_read;
+        }
+
+        execBuff[bytes_read_total] = '\0';
+        close(pipefd[0]);
+        waitpid(pid, &status, 0);
+        //printf("%s\n", execBuff);
+        strcpy(funcOutput, execBuff);
       }
       retVal = default_return;
     }
@@ -167,12 +252,11 @@ int runExecutable(char **executer, char *buff) {
 }
 
 int typef(char **inputt, char *buff) {
-
   for (int i = 1; i < maxBuff, inputt[i] != NULL; i++) {
     char *functionName = inputt[i];
     int found = 0;
     for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
-      if (!strcmp(functionName, commands[i])) {printf("%s is a shell builtin\n", commands[i]); found = 1; break;}
+      if (!strcmp(functionName, commands[i])) {sprintf(funcOutput, "%s is a shell builtin\n", commands[i]); found = 1; break;}
     }
     //check in path if not a builtin
     if (!found) {
@@ -195,7 +279,7 @@ int typef(char **inputt, char *buff) {
       }
     }
     if (!found) {
-      printf("%s: not found\n", functionName);
+      sprintf(funcOutput, "%s: not found\n", functionName);
     }
   }
   return default_return;
@@ -207,8 +291,7 @@ int exitt(char **inputt, char *buff) {
   }
   return 0;
 }
-
 int echo(char **inputt, char *buff) {
-  printf("%s\n", buff+5);
+  sprintf(funcOutput, "%s\n", buff+5);
   return default_return;
 }
