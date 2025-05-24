@@ -48,13 +48,13 @@ int main(int argc, char *argv[]) {
     int it = 0;
 
     while (prevOperator != -1) {
-      if (prevOperator == 0 || prevOperator == 1) {
+      if (prevOperator == 0 || prevOperator == 1 || prevOperator == 2 || prevOperator == 3) {
         //printf("%s\n", ((prevOperator)? funcOutput:funcError));
-        FILE *fileptr = fopen(*(argarr[it].command), "w");
-        fprintf(fileptr, "%s", ((!prevOperator)? funcOutput:funcError));
+        FILE *fileptr = fopen(*(argarr[it].command), ((prevOperator <= 1)? "w": "a"));
+        fprintf(fileptr, "%s", ((!prevOperator || prevOperator == 2)? funcOutput:funcError));
         fclose(fileptr);
-        if (!prevOperator) memset(funcOutput, '\0', sizeof(funcOutput));
-        if (prevOperator) memset(funcError, '\0', sizeof(funcError));
+        if (!prevOperator || prevOperator == 2) memset(funcOutput, '\0', sizeof(funcOutput));
+        if (prevOperator == 1 || prevOperator == 3) memset(funcError, '\0', sizeof(funcError));
         prevOperator = argarr[it].operator;
         it++;
       }
@@ -129,10 +129,12 @@ argStruct *argSeparate(char *S) {
   //printf("%s\n", buff);
     
     i = j;
-    if (!strcmp(buff, ">") || !strcmp(buff, "1>") || !strcmp(buff, "2>")) {
+    if (!strcmp(buff, ">") || !strcmp(buff, "1>") || !strcmp(buff, "2>") || !strcmp(buff, "1>>") || !strcmp(buff, ">>") || !strcmp(buff, "2>>")) {
       argStructArray[argStructArrayIndex].command = malloc(maxBuff);
       memcpy(argStructArray[argStructArrayIndex].command, arr, maxBuff);
       if (!strcmp(buff,"2>")) argStructArray[argStructArrayIndex].operator = 1;
+      else if (!strcmp(buff, "1>>") || (!strcmp(buff, ">>"))) argStructArray[argStructArrayIndex].operator = 2;
+      else if (!strcmp(buff, "2>>")) argStructArray[argStructArrayIndex].operator = 3;
       else argStructArray[argStructArrayIndex].operator = 0;
       argStructArrayIndex++;
       t = 0;
@@ -218,13 +220,13 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
       else if (pid == 0) {
         close(pipefd[0]);
         close(pipefd2[0]);
-        if (prevOperator == 0) {
+        if (prevOperator == 0 || prevOperator == 2) {
           if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
             perror("dup2");
             _exit(EXIT_FAILURE);
           }
         }
-        else if (prevOperator == 1) {
+        else if (prevOperator == 1 || prevOperator == 3) {
           if (dup2(pipefd2[1], STDERR_FILENO) == -1) {
             perror("dup2");
             _exit(EXIT_FAILURE); // Use _exit in child
