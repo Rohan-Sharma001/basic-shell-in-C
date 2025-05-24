@@ -270,7 +270,7 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
           else if (activity == 0) continue;
 
           if (fd_stdout != -1 && FD_ISSET(fd_stdout, &read_fds)) {
-            int bytes_read = read(fd_stdout, funcOutput, sizeof(funcOutput)-1-bytes_read_out);
+            int bytes_read = read(fd_stdout, funcOutput+bytes_read_out, sizeof(funcOutput)-1-bytes_read_out);
             bytes_read_out += bytes_read;
             if (bytes_read == 0) {
               close(pipefd[0]);
@@ -279,7 +279,7 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
           }
 
           if (fd_stderr != -1 && FD_ISSET(fd_stderr, &read_fds)) {
-            int bytes_read = read(fd_stderr, funcError, sizeof(funcError)-1-bytes_read_err);
+            int bytes_read = read(fd_stderr, funcError+bytes_read_err, sizeof(funcError)-1-bytes_read_err);
             bytes_read_err += bytes_read;
             if (bytes_read == 0) {
               close(pipefd2[0]);
