@@ -3,8 +3,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/select.h>
+#include <errno.h>
 
 const int maxBuff = 1024;
+int currentOperator;
 
 typedef struct argStruct {
   char **command;
@@ -12,6 +15,7 @@ typedef struct argStruct {
 } argStruct;
 
 char funcOutput[1024];
+char funcError[1024];
 
 int default_return = -1;
 int default_fail = -2;
@@ -44,11 +48,13 @@ int main(int argc, char *argv[]) {
     int it = 0;
 
     while (prevOperator != -1) {
-      if (prevOperator == 0) {
+      if (prevOperator == 0 || prevOperator == 1) {
+        //printf("%s\n", ((prevOperator)? funcOutput:funcError));
         FILE *fileptr = fopen(*(argarr[it].command), "w");
-        fprintf(fileptr, "%s", funcOutput);
+        fprintf(fileptr, "%s", ((!prevOperator)? funcOutput:funcError));
         fclose(fileptr);
-        memset(funcOutput, '\0', sizeof(funcOutput));
+        if (!prevOperator) memset(funcOutput, '\0', sizeof(funcOutput));
+        if (prevOperator) memset(funcError, '\0', sizeof(funcError));
         prevOperator = argarr[it].operator;
         it++;
       }
@@ -64,7 +70,8 @@ int main(int argc, char *argv[]) {
           if (!strcmp(argss[0], commands[i])) {returnVal = func[i](argss, buff); executed = 1; break;}
         }
         if (!executed) {
-          returnVal = runExecutable(argss, buff, prevOperator);
+          currentOperator = argarr[it].operator;
+          returnVal = runExecutable(argss, buff, argarr[it].operator);
         }
         prevOperator = argarr[it].operator;
         for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
@@ -78,8 +85,10 @@ int main(int argc, char *argv[]) {
       }
     }
     if (prevOperator == -1) {
-      printf("%s", funcOutput);
+      if (funcOutput[0] || funcError[0]) printf("%s%s", funcOutput,funcError);
       memset(funcOutput, '\0', sizeof(funcOutput));
+      memset(funcError, '\0', sizeof(funcError));
+      sleep(1);
     }
   }
 }
@@ -193,8 +202,8 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
       found = 1;
 
       //  CREATE PIPE
-      int pipefd[2];
-      if (pipe(pipefd) == -1) {
+      int pipefd[2], pipefd2[2];
+      if (pipe(pipefd) == -1 || pipe(pipefd2) == -1){
         perror("pipe");
         exit(EXIT_FAILURE);
       }
@@ -208,6 +217,7 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
       // HANDLE CHILD PROCESS
       else if (pid == 0) {
         close(pipefd[0]);
+        close(pipefd2[0]);
         if (prevOperator == 0) {
           if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
             perror("dup2");
@@ -215,23 +225,73 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
           }
         }
         else if (prevOperator == 1) {
-          if (dup2(pipefd[1], STDERR_FILENO) == -1) {
+          if (dup2(pipefd2[1], STDERR_FILENO) == -1) {
             perror("dup2");
             _exit(EXIT_FAILURE); // Use _exit in child
           }
         }
-        close (pipefd[1]);
+        close(pipefd[1]);
+        close(pipefd2[1]);
         execv(fullPath, executer);
         perror("execvp failed");
         _exit(EXIT_FAILURE);
       }
       //  HANDLE PARENT PROCESS
       else {
-        ssize_t bytes_read_total = 0;
-        ssize_t current_bytes_read;
-
         int status;
         close(pipefd[1]);
+        close(pipefd2[1]);
+        fd_set read_fds;
+        int fd_stdout = pipefd[0];
+        int fd_stderr = pipefd2[0];
+
+        char RBUF[1024];
+        int bytes_read_out = 0, bytes_read_err = 0;
+
+        while (fd_stderr != -1 || fd_stdout != -1){
+          FD_ZERO(&read_fds);
+          int max_fd = -1;
+
+          if (fd_stdout != -1) {
+            FD_SET(fd_stdout, &read_fds);
+            if (fd_stdout > max_fd) max_fd = fd_stdout;
+          }
+          if (fd_stderr != -1) {
+            FD_SET(fd_stderr, &read_fds);
+            if (fd_stderr > max_fd) max_fd = fd_stderr;
+          }
+
+          int activity = select(max_fd+1, &read_fds, NULL, NULL, NULL);
+          if (activity < 0) {
+            if (errno == EINTR) continue;
+            perror("selection mein error");
+            break;
+          }
+          else if (activity == 0) continue;
+
+          if (fd_stdout != -1 && FD_ISSET(fd_stdout, &read_fds)) {
+            int bytes_read = read(fd_stdout, funcOutput, sizeof(funcOutput)-1-bytes_read_out);
+            bytes_read_out += bytes_read;
+            if (bytes_read == 0) {
+              close(pipefd[0]);
+              fd_stdout = -1;
+            }
+          }
+
+          if (fd_stderr != -1 && FD_ISSET(fd_stderr, &read_fds)) {
+            int bytes_read = read(fd_stderr, funcError, sizeof(funcError)-1-bytes_read_err);
+            bytes_read_err += bytes_read;
+            if (bytes_read == 0) {
+              close(pipefd2[0]);
+              fd_stderr = -1;
+            }
+          }
+        }
+
+        /*ssize_t bytes_read_total = 0;
+        ssize_t current_bytes_read;
+
+        
         while (bytes_read_total < sizeof(execBuff) - 1 && 
                (current_bytes_read = read(pipefd[0], execBuff + bytes_read_total, sizeof(execBuff) - 1 - bytes_read_total)) > 0) {
             bytes_read_total += current_bytes_read;
@@ -241,7 +301,7 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
         close(pipefd[0]);
         waitpid(pid, &status, 0);
         //printf("%s\n", execBuff);
-        strcpy(funcOutput, execBuff);
+        strcpy(funcOutput, execBuff);*/
       }
       retVal = default_return;
     }
