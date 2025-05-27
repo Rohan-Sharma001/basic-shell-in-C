@@ -5,6 +5,8 @@
 #include <sys/wait.h>
 #include <sys/select.h>
 #include <errno.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 const int maxBuff = 1024;
 int currentOperator;
@@ -28,68 +30,77 @@ int runExecutable(char **inputt, char *buff, int prevOperator);
 int pwd(char **inputt, char *buff);
 int cd(char **inputt, char *cdto);
 argStruct *argSeparate(char *S);
+char *generatoR(const char *input, int state);
+char **completerFn(const char *input, int start, int end);
 int (*func[]) (char **, char *) = {exitt, echo, typef, pwd, cd};
-
+char **matchList = commands;
+int listIndex;
 
 
 int main(int argc, char *argv[]) {
+  rl_attempted_completion_function = completerFn;
   setbuf(stdout, NULL);
 
-  char input[maxBuff];
+  char *input;
   while (1) { 
-    printf("$ ");
-    fgets(input, 100, stdin);
-    input[strlen(input) - 1] = '\0';
+    //printf("$ ");
+    //fgets(input, 100, stdin);
+    input = readline("$ ");
+    //input[strlen(input) - 1] = '\0';
+    if (input) {
+      argStruct *argarr = argSeparate(input);
+      char buff[maxBuff]; memset(buff, '\0', maxBuff);
+      char *space = " ";
+      int prevOperator = -2;
+      int it = 0;
 
-    argStruct *argarr = argSeparate(input);
-    char buff[maxBuff]; memset(buff, '\0', maxBuff);
-    char *space = " ";
-    int prevOperator = -2;
-    int it = 0;
-
-    while (prevOperator != -1) {
-      if (prevOperator == 0 || prevOperator == 1 || prevOperator == 2 || prevOperator == 3) {
-        //printf("%s\n", ((prevOperator)? funcOutput:funcError));
-        FILE *fileptr = fopen(*(argarr[it].command), ((prevOperator <= 1)? "w": "a"));
-        fprintf(fileptr, "%s", ((!prevOperator || prevOperator == 2)? funcOutput:funcError));
-        fclose(fileptr);
-        if (!prevOperator || prevOperator == 2) memset(funcOutput, '\0', sizeof(funcOutput));
-        if (prevOperator == 1 || prevOperator == 3) memset(funcError, '\0', sizeof(funcError));
-        prevOperator = argarr[it].operator;
-        it++;
+      while (prevOperator != -1) {
+        if (prevOperator == 0 || prevOperator == 1 || prevOperator == 2 || prevOperator == 3) {
+          //printf("%s\n", ((prevOperator)? funcOutput:funcError));
+          FILE *fileptr = fopen(*(argarr[it].command), ((prevOperator <= 1)? "w": "a"));
+          fprintf(fileptr, "%s", ((!prevOperator || prevOperator == 2)? funcOutput:funcError));
+          fclose(fileptr);
+          if (!prevOperator || prevOperator == 2) memset(funcOutput, '\0', sizeof(funcOutput));
+          if (prevOperator == 1 || prevOperator == 3) memset(funcError, '\0', sizeof(funcError));
+          prevOperator = argarr[it].operator;
+          it++;
+        }
+        else {
+          if (!argarr[it].command) break;
+          char **argss = argarr[it].command;
+          for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
+            strcat(buff, argss[i]);
+            strcat(buff, space);
+          }
+          buff[strlen(buff) - 1] = '\0';
+          int returnVal, executed = 0;
+          for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
+            if (!strcmp(argss[0], commands[i])) {returnVal = func[i](argss, buff); executed = 1; break;}
+          }
+          if (!executed) {
+            currentOperator = argarr[it].operator;
+            returnVal = runExecutable(argss, buff, argarr[it].operator);
+          }
+          prevOperator = argarr[it].operator;
+          for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
+            free(argss[i]);
+          }
+          free(argss);
+          if (returnVal != default_fail && returnVal != default_return) {
+            return returnVal;
+          }
+          it++;
+        }
       }
-      else {
-        char **argss = argarr[it].command;
-        for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
-          strcat(buff, argss[i]);
-          strcat(buff, space);
-        }
-        buff[strlen(buff) - 1] = '\0';
-        int returnVal, executed = 0;
-        for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
-          if (!strcmp(argss[0], commands[i])) {returnVal = func[i](argss, buff); executed = 1; break;}
-        }
-        if (!executed) {
-          currentOperator = argarr[it].operator;
-          returnVal = runExecutable(argss, buff, argarr[it].operator);
-        }
-        prevOperator = argarr[it].operator;
-        for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
-          free(argss[i]);
-        }
-        free(argss);
-        if (returnVal != default_fail && returnVal != default_return) {
-          return returnVal;
-        }
-        it++;
+      if (prevOperator == -1) {
+        if (funcOutput[0] || funcError[0]) printf("%s%s", funcOutput,funcError);
+        memset(funcOutput, '\0', sizeof(funcOutput));
+        memset(funcError, '\0', sizeof(funcError));
+        sleep(1);
       }
+      free(argarr);
     }
-    if (prevOperator == -1) {
-      if (funcOutput[0] || funcError[0]) printf("%s%s", funcOutput,funcError);
-      memset(funcOutput, '\0', sizeof(funcOutput));
-      memset(funcError, '\0', sizeof(funcError));
-      sleep(1);
-    }
+    free(input);
   }
 }
 
@@ -147,6 +158,7 @@ argStruct *argSeparate(char *S) {
       argStructArray[argStructArrayIndex].operator = -1;
     }
   }
+  free(arr);
   return argStructArray;
 }
 /*
@@ -361,4 +373,27 @@ int exitt(char **inputt, char *buff) {
 int echo(char **inputt, char *buff) {
   sprintf(funcOutput, "%s\n", buff+5);
   return default_return;
+}
+/*
+  COMPLETER FUNCTION
+*/
+char *generatoR(const char *input, int state) {
+  if (state == 0) {
+    /*if (matchList) {
+      for (int i = 0; matchList[i]; i++) free(matchList[i]);
+      free(matchList);
+      matchList = NULL;
+    }*/
+    listIndex = 0;
+  }
+  while (matchList[listIndex]) {
+    if (!strncmp(matchList[listIndex], input, strlen(input)))  
+      return strdup(matchList[listIndex++]);
+    listIndex++;
+  }
+  return NULL;
+}
+char **completerFn(const char *input, int start, int end) {
+  rl_attempted_completion_over = 1;
+  return rl_completion_matches(input, generatoR);
 }
