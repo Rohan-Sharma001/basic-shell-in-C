@@ -395,5 +395,6 @@ char *generatoR(const char *input, int state) {
 }
 char **completerFn(const char *input, int start, int end) {
   rl_attempted_completion_over = 1;
-  return rl_completion_matches(input, generatoR);
+  char **a = rl_completion_matches(input, generatoR);
+  return a;
 }
