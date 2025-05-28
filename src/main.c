@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 const int maxBuff = 1024;
 int currentOperator;
@@ -35,7 +37,8 @@ char **completerFn(const char *input, int start, int end);
 int (*func[]) (char **, char *) = {exitt, echo, typef, pwd, cd};
 char **matchList = commands;
 int listIndex;
-
+char *tokken;
+DIR *currentDirStream = NULL;
 
 int main(int argc, char *argv[]) {
   rl_attempted_completion_function = completerFn;
@@ -43,10 +46,7 @@ int main(int argc, char *argv[]) {
 
   char *input;
   while (1) { 
-    //printf("$ ");
-    //fgets(input, 100, stdin);
     input = readline("$ ");
-    //input[strlen(input) - 1] = '\0';
     if (input) {
       argStruct *argarr = argSeparate(input);
       char buff[maxBuff]; memset(buff, '\0', maxBuff);
@@ -87,6 +87,8 @@ int main(int argc, char *argv[]) {
           }
           free(argss);
           if (returnVal != default_fail && returnVal != default_return) {
+            free(argarr);
+            free(input);
             return returnVal;
           }
           it++;
@@ -327,6 +329,7 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
   if (!foundSomething) {
     invalid_command(executer, buff);
   }
+  free(pathVar);
   return retVal;
 }
 
@@ -378,6 +381,8 @@ int echo(char **inputt, char *buff) {
   COMPLETER FUNCTION
 */
 char *generatoR(const char *input, int state) {
+  static char *pathVar = NULL;
+  struct stat st;
   if (state == 0) {
     /*if (matchList) {
       for (int i = 0; matchList[i]; i++) free(matchList[i]);
@@ -385,12 +390,29 @@ char *generatoR(const char *input, int state) {
       matchList = NULL;
     }*/
     listIndex = 0;
+    pathVar = strdup(getenv("PATH"));
+    tokken = strtok(pathVar, ":");
+    if (currentDirStream) closedir(currentDirStream);
   }
   while (matchList[listIndex]) {
     if (!strncmp(matchList[listIndex], input, strlen(input)))  
       return strdup(matchList[listIndex++]);
     listIndex++;
   }
+  static struct dirent *entry;
+  
+  while (tokken != NULL) {
+    if (!currentDirStream) currentDirStream = opendir(tokken);
+    if (!currentDirStream) {tokken = strtok(NULL, ":"); continue;}
+    entry = readdir(currentDirStream);
+    while (entry != NULL) {
+      if (!strncmp(entry->d_name, input, strlen(input))) {return strdup(entry->d_name);}
+      entry = readdir(currentDirStream);
+    }
+    tokken = strtok(NULL, ":");
+    if(currentDirStream) {closedir(currentDirStream); currentDirStream = NULL;}
+  }
+  free(pathVar);
   return NULL;
 }
 char **completerFn(const char *input, int start, int end) {
