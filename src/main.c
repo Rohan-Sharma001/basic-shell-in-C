@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 
     char *input;
     while (1) {
-      sleep(1);
+      sleep(0.75);
       input = readline("$ ");
       if (input) {
         add_history(input);
