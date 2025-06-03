@@ -23,7 +23,7 @@ char funcError[1024];
 
 int default_return = -1;
 int default_fail = -2;
-char *commands[] = {"exit", "echo", "type", "pwd", "cd"};
+char *commands[] = {"exit", "echo", "type", "pwd", "cd", "history"};
 
 int invalid_command(char **inputt, char *buff);
 int echo(char **inputt, char *buff);
@@ -38,9 +38,10 @@ char **completerFn(const char *input, int start, int end);
 void executer(argStruct *argarr, char *input);
 char **pipeSep(char *input);
 void pipeRun(char **commandArr, int size, char *cwdd);
+int history(char **inputt, char *buff);
 int suppress = 0;
 
-int (*func[]) (char **, char *) = {exitt, echo, typef, pwd, cd};
+int (*func[]) (char **, char *) = {exitt, echo, typef, pwd, cd, history};
 char **matchList = commands;
 int listIndex;
 char *tokken;
@@ -50,6 +51,7 @@ DIR *currentDirStream = NULL;
 int main(int argc, char *argv[]) {
   //printf("%s",argv[0]);
   if (argc == 1) {
+    void using_history(void);
     rl_attempted_completion_function = completerFn;
     setbuf(stdout, NULL);
 
@@ -58,6 +60,7 @@ int main(int argc, char *argv[]) {
       sleep(0.5);
       input = readline("$ ");
       if (input) {
+        add_history(input);
         char **pipeArr = pipeSep(input);
         int N = 1;
         for (int i = 0; input[i]; i++) N += input[i] == '|';
@@ -337,7 +340,16 @@ int typef(char **inputt, char *buff) {
   }
   return default_return;
 }
-
+int history(char **inputt, char *buff) {
+  char returnStr[1024]; memset(returnStr, 1024, '\0');
+  HIST_ENTRY **historyList = history_list();
+  for (int i = 0; historyList[i];) {
+    //printf("%s\n", historyList[i]->line);
+    snprintf(returnStr+strlen(returnStr), 1023-strlen(returnStr), "%d %s\n", ++i, historyList[i]->line);
+  }
+  strcpy(funcOutput, returnStr);
+  return 0;
+}
 int exitt(char **inputt, char *buff) {
   if (inputt[1] != NULL) {
     exit(atoi(inputt[1]));
@@ -456,7 +468,7 @@ char **pipeSep(char *input) {
     returnArr[arrSize-1] = strdup(token + start);
     token = strtok(NULL, "|");
   }
-  free(inputCpy);
+  //free(inputCpy);
   return returnArr;
 }
 void pipeRun(char **commandArr, int size, char *cwdd) {
