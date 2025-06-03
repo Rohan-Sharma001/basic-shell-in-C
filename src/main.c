@@ -24,6 +24,7 @@ char funcError[1024];
 int default_return = -1;
 int default_fail = -2;
 char *commands[] = {"exit", "echo", "type", "pwd", "cd"};
+
 int invalid_command(char **inputt, char *buff);
 int echo(char **inputt, char *buff);
 int exitt(char **inputt, char *buff);
@@ -34,75 +35,45 @@ int cd(char **inputt, char *cdto);
 argStruct *argSeparate(char *S);
 char *generatoR(const char *input, int state);
 char **completerFn(const char *input, int start, int end);
+void executer(argStruct *argarr, char *input);
+char **pipeSep(char *input);
+void pipeRun(char **commandArr, int size, char *cwdd);
+int suppress = 0;
+
 int (*func[]) (char **, char *) = {exitt, echo, typef, pwd, cd};
 char **matchList = commands;
 int listIndex;
 char *tokken;
 DIR *currentDirStream = NULL;
 
+
 int main(int argc, char *argv[]) {
-  rl_attempted_completion_function = completerFn;
-  setbuf(stdout, NULL);
+  //printf("%s",argv[0]);
+  if (argc == 1) {
+    rl_attempted_completion_function = completerFn;
+    setbuf(stdout, NULL);
 
-  char *input;
-  while (1) { 
-    input = readline("$ ");
-    if (input) {
-      argStruct *argarr = argSeparate(input);
-      char buff[maxBuff]; memset(buff, '\0', maxBuff);
-      char *space = " ";
-      int prevOperator = -2;
-      int it = 0;
-
-      while (prevOperator != -1) {
-        if (prevOperator == 0 || prevOperator == 1 || prevOperator == 2 || prevOperator == 3) {
-          //printf("%s\n", ((prevOperator)? funcOutput:funcError));
-          FILE *fileptr = fopen(*(argarr[it].command), ((prevOperator <= 1)? "w": "a"));
-          fprintf(fileptr, "%s", ((!prevOperator || prevOperator == 2)? funcOutput:funcError));
-          fclose(fileptr);
-          if (!prevOperator || prevOperator == 2) memset(funcOutput, '\0', sizeof(funcOutput));
-          if (prevOperator == 1 || prevOperator == 3) memset(funcError, '\0', sizeof(funcError));
-          prevOperator = argarr[it].operator;
-          it++;
-        }
-        else {
-          if (!argarr[it].command) break;
-          char **argss = argarr[it].command;
-          for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
-            strcat(buff, argss[i]);
-            strcat(buff, space);
-          }
-          buff[strlen(buff) - 1] = '\0';
-          int returnVal, executed = 0;
-          for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
-            if (!strcmp(argss[0], commands[i])) {returnVal = func[i](argss, buff); executed = 1; break;}
-          }
-          if (!executed) {
-            currentOperator = argarr[it].operator;
-            returnVal = runExecutable(argss, buff, argarr[it].operator);
-          }
-          prevOperator = argarr[it].operator;
-          for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
-            free(argss[i]);
-          }
-          free(argss);
-          if (returnVal != default_fail && returnVal != default_return) {
-            free(argarr);
-            free(input);
-            return returnVal;
-          }
-          it++;
-        }
+    char *input;
+    while (1) {
+      sleep(0.5);
+      input = readline("$ ");
+      if (input) {
+        char **pipeArr = pipeSep(input);
+        int N = 1;
+        for (int i = 0; input[i]; i++) N += input[i] == '|';
+        pipeRun(pipeArr, N, argv[0]);
+        free(pipeArr);
+        //argStruct *argarr = argSeparate(input);
+        //executer(argarr, input);
       }
-      if (prevOperator == -1) {
-        if (funcOutput[0] || funcError[0]) printf("%s%s", funcOutput,funcError);
-        memset(funcOutput, '\0', sizeof(funcOutput));
-        memset(funcError, '\0', sizeof(funcError));
-        sleep(1);
-      }
-      free(argarr);
+      free(input);
     }
-    free(input);
+  } else {
+    char *input = argv[1];
+    argStruct *argarr = argSeparate(input);
+    printf("HEHEHE\n");
+    executer(argarr, input);
+    return 0;
   }
 }
 
@@ -369,7 +340,7 @@ int typef(char **inputt, char *buff) {
 
 int exitt(char **inputt, char *buff) {
   if (inputt[1] != NULL) {
-    return atoi(inputt[1]);
+    exit(atoi(inputt[1]));
   }
   return 0;
 }
@@ -377,6 +348,7 @@ int echo(char **inputt, char *buff) {
   sprintf(funcOutput, "%s\n", buff+5);
   return default_return;
 }
+
 /*
   COMPLETER FUNCTION
 */
@@ -419,4 +391,112 @@ char **completerFn(const char *input, int start, int end) {
   rl_attempted_completion_over = 1;
   char **a = rl_completion_matches(input, generatoR);
   return a;
+}
+void executer(argStruct *argarr, char *input) {
+  char buff[maxBuff]; memset(buff, '\0', maxBuff);
+      char *space = " ";
+      int prevOperator = -2;
+      int it = 0;
+
+      while (prevOperator != -1) {
+        if (prevOperator == 0 || prevOperator == 1 || prevOperator == 2 || prevOperator == 3) {
+          //printf("%s\n", ((prevOperator)? funcOutput:funcError));
+          FILE *fileptr = fopen(*(argarr[it].command), ((prevOperator <= 1)? "w": "a"));
+          fprintf(fileptr, "%s", ((!prevOperator || prevOperator == 2)? funcOutput:funcError));
+          fclose(fileptr);
+          if (!prevOperator || prevOperator == 2) memset(funcOutput, '\0', sizeof(funcOutput));
+          if (prevOperator == 1 || prevOperator == 3) memset(funcError, '\0', sizeof(funcError));
+          prevOperator = argarr[it].operator;
+          it++;
+        }
+        else {
+          if (!argarr[it].command) break;
+          char **argss = argarr[it].command;
+          for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
+            strcat(buff, argss[i]);
+            strcat(buff, space);
+          }
+          buff[strlen(buff) - 1] = '\0';
+          int returnVal, executed = 0;
+          for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
+            if (!strcmp(argss[0], commands[i])) {returnVal = func[i](argss, buff); executed = 1; break;}
+          }
+          if (!executed) {
+            currentOperator = argarr[it].operator;
+            returnVal = runExecutable(argss, buff, argarr[it].operator);
+          }
+          prevOperator = argarr[it].operator;
+          for (int i = 0; i < maxBuff, argss[i] != NULL; i++) {
+            free(argss[i]);
+          }
+          free(argss);
+          it++;
+        }
+      }
+      if (prevOperator == -1) {
+        if ((funcOutput[0] || funcError[0]) && !suppress) printf("%s%s", funcOutput,funcError);
+        memset(funcOutput, '\0', sizeof(funcOutput));
+        memset(funcError, '\0', sizeof(funcError));
+        sleep(1);
+      }
+      free(argarr);
+}
+char **pipeSep(char *input) {
+  char **returnArr = malloc(0*sizeof(char *));
+  int arrSize = 0;
+  char *inputCpy = strdup(input);
+  char *token = strtok(inputCpy, "|");
+  while (token != NULL) {
+    returnArr = realloc(returnArr, sizeof(char *));
+    arrSize++;
+    int start = 0, end = strlen(token)-1;
+    for (;token[start] == ' '; start++);
+    for (;token[end] == ' '; end--);
+    token[end+1] = 0;
+    returnArr[arrSize-1] = strdup(token + start);
+    token = strtok(NULL, "|");
+  }
+  free(inputCpy);
+  return returnArr;
+}
+void pipeRun(char **commandArr, int size, char *cwdd) {
+  int pipefd[2*(size-1)];
+  for (int i = 0; i < size-1; i++) {
+    pipe(pipefd+2*i);
+  }
+
+  for (int i = 0; i < size; i++) {
+    pid_t forkk = fork();
+    argStruct *argarr = argSeparate(commandArr[i]);
+    if (forkk == 0) {
+      if (i > 0) {
+        if (dup2(pipefd[2*(i-1)], STDIN_FILENO) < 0) {perror("NO DUPE");exit(1);}
+      }
+      if (i < size-1) {
+        if (dup2(pipefd[2*i+1], STDOUT_FILENO) < 0) {perror("NO DUPEE");exit(1);}
+      }
+      for (int j = 0; j < 2 * (size - 1); j++) {
+        close(pipefd[j]);
+      }
+      
+      executer(argarr, commandArr[i]);
+      //perror("NO:");
+      exit(1);
+    } else {
+      suppress=1;
+      if (!strncmp(commandArr[i], "cd",2)) {executer(argarr, commandArr[i]);}
+      else if (!strncmp(commandArr[i], "exit", 4)) {executer(argarr, commandArr[i]);}
+      suppress = 0;
+    }
+    //free(argarr);
+  }
+
+  for (int j = 0; j < 2 * (size - 1); j++) {
+    close(pipefd[j]);
+  }
+
+  // Wait for all children
+  for (int j = 0; j < size; j++) {
+    wait(NULL);
+  }
 }

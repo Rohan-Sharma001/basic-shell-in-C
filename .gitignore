@@ -52,6 +52,11 @@ Mkfile.old
 dkms.conf
 
 src/testt.c
+src/testt
+src/main
+p
+.vscode
+a.txt
 
 build
 vcpkg_installed
