@@ -341,11 +341,15 @@ int typef(char **inputt, char *buff) {
   return default_return;
 }
 int history(char **inputt, char *buff) {
+  int limit;
+  
   char returnStr[1024]; memset(returnStr, '\0', 1024);
   HIST_ENTRY **historyList = history_list();
   int itemSize = 0;
   while (historyList[++itemSize] != NULL);
-  for (int i = 0; i < itemSize;i++) {
+  if (inputt[1]) limit = atoi(inputt[1]);
+  else limit = itemSize;
+  for (int i = itemSize - limit; i < itemSize;i++) {
     //printf("%s\n", historyList[i]->line);
     snprintf(returnStr+strlen(returnStr), 1023-strlen(returnStr), "%d %s\n", i+1, historyList[i]->line);
   }
