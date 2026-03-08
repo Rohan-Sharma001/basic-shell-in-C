@@ -408,9 +408,11 @@ int history(char **inputt, char *buff) {
   return 0;
 }
 int exitt(char **inputt, char *buff) {
+  write_history(getenv("HISTFILE"));
   if (inputt[1] != NULL) {
     exit(atoi(inputt[1]));
   }
+
   exit(0);
   return 0;
 }
