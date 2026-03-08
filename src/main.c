@@ -49,7 +49,6 @@ DIR *currentDirStream = NULL;
 
 
 int main(int argc, char *argv[]) {
-  //printf("%s",argv[0]);
   if (argc == 1) {
     void using_history(void);
     rl_attempted_completion_function = completerFn;
@@ -57,9 +56,8 @@ int main(int argc, char *argv[]) {
 
     char *input;
     while (1) {
-      sleep(0.75);
-      input = readline("$ ");
-      if (input) {
+      input = readline(">> ");
+      if (input[0]) {
         add_history(input);
         char **pipeArr = pipeSep(input);
         int N = 1;
@@ -276,6 +274,7 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
               fd_stderr = -1;
             }
           }
+          wait(NULL);
         }
 
         /*ssize_t bytes_read_total = 0;
@@ -347,6 +346,13 @@ int history(char **inputt, char *buff) {
   HIST_ENTRY **historyList = history_list();
   int itemSize = 0;
   while (historyList[++itemSize] != NULL);
+  if (inputt[1]) {
+    if (strcmp(inputt[1], "-r") == 0) {
+      char* historyFileLocation = inputt[2];
+      read_history(historyFileLocation);
+    }
+    return 0;
+  }
   if (inputt[1]) limit = atoi(inputt[1]);
   else limit = itemSize;
   for (int i = itemSize - limit; i < itemSize;i++) {
@@ -455,7 +461,6 @@ void executer(argStruct *argarr, char *input) {
         if ((funcOutput[0] || funcError[0]) && !suppress) printf("%s%s", funcOutput,funcError);
         memset(funcOutput, '\0', sizeof(funcOutput));
         memset(funcError, '\0', sizeof(funcError));
-        sleep(1);
       }
       free(argarr);
 }
