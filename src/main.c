@@ -360,7 +360,9 @@ int history(char **inputt, char *buff) {
   char returnStr[1024]; memset(returnStr, '\0', 1024);
   HIST_ENTRY **historyList = history_list();
   int itemSize = 0;
-  while (historyList[++itemSize] != NULL);
+  if (historyList) {
+    while (historyList[itemSize] != NULL) itemSize++;
+  }
   if (inputt[1]) {
     if (strcmp(inputt[1], "-r") == 0) {
       char* historyFileLocation = inputt[2];
@@ -385,7 +387,7 @@ int history(char **inputt, char *buff) {
     else if (strcmp(inputt[1], "-a") == 0) {
       char* toAppendHistoryLocation = inputt[2];
       append_history(itemSize - lastAppendLength, toAppendHistoryLocation);
-      fprintf(stderr, "%i\n", itemSize - lastAppendLength);
+      // fprintf(stderr, "%i\n", itemSize - lastAppendLength);
       lastAppendLength = itemSize;
 
       return 0;
@@ -394,6 +396,8 @@ int history(char **inputt, char *buff) {
   }
   if (inputt[1]) limit = atoi(inputt[1]);
   else limit = itemSize;
+  if (limit > itemSize) limit = itemSize;
+  if (limit < 0) limit = 0;
   for (int i = itemSize - limit; i < itemSize;i++) {
     //printf("%s\n", historyList[i]->line);
     snprintf(returnStr+strlen(returnStr), 1023-strlen(returnStr), "%d %s\n", i+1, historyList[i]->line);
@@ -541,11 +545,14 @@ void pipeRun(char **commandArr, int size, char *cwdd) {
       for (int j = 0; j < 2 * (size - 1); j++) {
         close(pipefd[j]);
       }
-      executer(argarr, commandArr[i]);
+      if (!strncmp(commandArr[i], "cd",2)) {;}
+      else if (!strncmp(commandArr[i], "exit", 4)) {;}
+      else if (!strncmp(commandArr[i], "history", 7)) ;
+      else executer(argarr, commandArr[i]);
       //perror("NO:");
       exit(1);
     } else {
-      suppress=1;
+      suppress = (size > 1);
       if (!strncmp(commandArr[i], "cd",2)) {executer(argarr, commandArr[i]);}
       else if (!strncmp(commandArr[i], "exit", 4)) {executer(argarr, commandArr[i]);}
       else if (!strncmp(commandArr[i], "history", 7)) executer(argarr, commandArr[i]);
