@@ -386,7 +386,10 @@ int history(char **inputt, char *buff) {
       char* toAppendHistoryLocation = inputt[2];
       append_history(itemSize - lastAppendLength, toAppendHistoryLocation);
       lastAppendLength = itemSize;
+
+      return 0;
     }
+
   }
   if (inputt[1]) limit = atoi(inputt[1]);
   else limit = itemSize;
