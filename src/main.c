@@ -99,7 +99,14 @@ argStruct *argSeparate(char *S) {
     for (j = i; j < strlen(S); j++) {
       if (S[j] == '\'' && !(inDquotes)) {inquotes ^= 1;}
       else if (S[j] == '\"' && !(inquotes)) {inDquotes ^= 1;}
-      else if (S[j] == '\\' && !(inquotes) && !(inDquotes) && j < strlen(S)-1) {j++;}
+      // else if (S[j] == '\\' && !(inquotes) && j < strlen(S)-1) {j++;}
+      else if (S[j] == '\\' && !(inquotes) && j < strlen(S)-1) {
+          // k++; buff[strlen(buff)] = S[k];
+          if (inDquotes && (S[j+1] == '\"' || S[j+1] == '\\' || S[j+1] == '$' || S[j+1] == '`' || S[j+1] == '\n')) {
+            j++;
+          }
+          else if (!inDquotes) j++;
+        }
       else if (S[j] == ' ' && !inquotes && !inDquotes) {break;}
     }
     
@@ -107,8 +114,16 @@ argStruct *argSeparate(char *S) {
     for (int k = i; k < j; k++) {
         if (S[k] == '\'' && !(inDquotes)) {inquotes ^= 1;}
         else if (S[k] == '\"' && !(inquotes)) {inDquotes ^= 1;}
-        else if (S[k] == '\\' && !(inquotes) && !(inDquotes) && k < j-1) {k++; buff[strlen(buff)] = S[k];}
-        else if (S[k] == '\\' && (S[k+1] == '\\' || S[k] == '$' || S[k+1] == '\"' || S[k+1] == '\n') && inDquotes) {k++;buff[strlen(buff)] = S[k];}
+        else if (S[k] == '\\' && !(inquotes) && k < j-1) {
+          // k++; buff[strlen(buff)] = S[k];
+          if (inDquotes && (S[k+1] == '\"' || S[k+1] == '\\' || S[k+1] == '$' || S[k+1] == '`' || S[k+1] == '\n')) {
+            k++;
+          }
+          else if (!inDquotes) k++;
+
+          buff[strlen(buff)] = S[k];
+        }
+        // else if (S[k] == '\\' && (S[k+1] == '\\' || S[k+1] == '$' || S[k+1] == '\"' || S[k+1] == '\n')) {k++;buff[strlen(buff)] = S[k];}
         else buff[strlen(buff)] = S[k];
     }
   //printf("%s\n", buff);
@@ -307,7 +322,7 @@ int runExecutable(char **executer, char *buff, int prevOperator) {
 }
 
 int typef(char **inputt, char *buff) {
-  for (int i = 1; i < maxBuff, inputt[i] != NULL; i++) {
+  for (int i = 1; i < maxBuff && inputt[i] != NULL; i++) {
     char *functionName = inputt[i];
     int found = 0;
     for (int i = 0; i < sizeof(func)/sizeof(func[0]); i++) {
@@ -323,7 +338,7 @@ int typef(char **inputt, char *buff) {
         char *fullPath = malloc(strlen(token) + 1 + strlen(functionName) + 1);
         sprintf(fullPath, "%s/%s", token, functionName);
 
-        if (!access(fullPath, F_OK)) {
+        if (!access(fullPath, X_OK)) {
           printf("%s is %s\n", inputt[i], fullPath);
           found = 1;
           free(fullPath);
@@ -349,8 +364,16 @@ int history(char **inputt, char *buff) {
   if (inputt[1]) {
     if (strcmp(inputt[1], "-r") == 0) {
       char* historyFileLocation = inputt[2];
-      read_history(historyFileLocation);
-
+      FILE* historyData= fopen(historyFileLocation, "r");
+      if (!historyData) {
+        printf("couldn't open the file\n");
+        return 1;
+      }
+      char readBuffer[maxBuff];
+      while (fgets(readBuffer, sizeof(readBuffer), historyData) != NULL) {
+        for (int i = 0; i < maxBuff; i++) if (readBuffer[i] == '\n') readBuffer[i] = '\0';
+        add_history(readBuffer);
+      }
       return 0;
     }
   }
@@ -367,6 +390,7 @@ int exitt(char **inputt, char *buff) {
   if (inputt[1] != NULL) {
     exit(atoi(inputt[1]));
   }
+  exit(0);
   return 0;
 }
 int echo(char **inputt, char *buff) {
@@ -510,6 +534,7 @@ void pipeRun(char **commandArr, int size, char *cwdd) {
       suppress=1;
       if (!strncmp(commandArr[i], "cd",2)) {executer(argarr, commandArr[i]);}
       else if (!strncmp(commandArr[i], "exit", 4)) {executer(argarr, commandArr[i]);}
+      else if (!strncmp(commandArr[i], "history", 7)) executer(argarr, commandArr[i]);
       suppress = 0;
     }
     //free(argarr);
