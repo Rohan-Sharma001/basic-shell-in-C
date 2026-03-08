@@ -385,6 +385,7 @@ int history(char **inputt, char *buff) {
     else if (strcmp(inputt[1], "-a") == 0) {
       char* toAppendHistoryLocation = inputt[2];
       append_history(itemSize - lastAppendLength, toAppendHistoryLocation);
+      printf("%i\n", itemSize - lastAppendLength);
       lastAppendLength = itemSize;
 
       return 0;
