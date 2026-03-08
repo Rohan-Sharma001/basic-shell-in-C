@@ -356,7 +356,7 @@ int typef(char **inputt, char *buff) {
 }
 int history(char **inputt, char *buff) {
   int limit;
-  
+  static int lastAppendLength = 0;
   char returnStr[1024]; memset(returnStr, '\0', 1024);
   HIST_ENTRY **historyList = history_list();
   int itemSize = 0;
@@ -384,7 +384,8 @@ int history(char **inputt, char *buff) {
     }
     else if (strcmp(inputt[1], "-a") == 0) {
       char* toAppendHistoryLocation = inputt[2];
-      append_history(itemSize, toAppendHistoryLocation);
+      append_history(itemSize - lastAppendLength, toAppendHistoryLocation);
+      lastAppendLength = itemSize;
     }
   }
   if (inputt[1]) limit = atoi(inputt[1]);
