@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
   if (argc == 1) {
     void using_history(void);
     read_history(getenv("HISTFILE"));
-    // rl_attempted_completion_function = completerFn;
+    rl_attempted_completion_function = completerFn;
     setbuf(stdout, NULL);
 
     char *input;
@@ -461,9 +461,13 @@ char *generatoR(const char *input, int state) {
   return NULL;
 }
 char **completerFn(const char *input, int start, int end) {
-  rl_attempted_completion_over = 1;
-  char **a = rl_completion_matches(input, generatoR);
-  return a;
+  char** a;
+  if (start == 0) {
+    rl_attempted_completion_over = 1;
+    return rl_completion_matches(input, generatoR);
+  }
+  rl_attempted_completion_over = 0;
+  return rl_completion_matches(input, rl_filename_completion_function);
 }
 void executer(argStruct *argarr, char *input) {
   char buff[maxBuff]; memset(buff, '\0', maxBuff);
