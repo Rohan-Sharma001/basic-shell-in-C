@@ -52,12 +52,13 @@ int main(int argc, char *argv[]) {
   if (argc == 1) {
     void using_history(void);
     read_history(getenv("HISTFILE"));
-    rl_attempted_completion_function = completerFn;
+    // rl_attempted_completion_function = completerFn;
     setbuf(stdout, NULL);
 
     char *input;
     while (1) {
       input = readline("$ ");
+      // rl_complete(int, int)
       if (input[0]) {
         add_history(input);
         char **pipeArr = pipeSep(input);
