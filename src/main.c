@@ -376,6 +376,12 @@ int history(char **inputt, char *buff) {
       }
       return 0;
     }
+    else if (strcmp(inputt[1], "-w") == 0) {
+      char* toWriteHisoryLocation = inputt[2];
+      write_history(toWriteHisoryLocation);
+
+      return 0;
+    }
   }
   if (inputt[1]) limit = atoi(inputt[1]);
   else limit = itemSize;
@@ -526,7 +532,6 @@ void pipeRun(char **commandArr, int size, char *cwdd) {
       for (int j = 0; j < 2 * (size - 1); j++) {
         close(pipefd[j]);
       }
-      
       executer(argarr, commandArr[i]);
       //perror("NO:");
       exit(1);
