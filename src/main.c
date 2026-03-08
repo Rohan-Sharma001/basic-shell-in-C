@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
 
     char *input;
     while (1) {
-      input = readline(">> ");
+      input = readline("$ ");
       if (input[0]) {
         add_history(input);
         char **pipeArr = pipeSep(input);
@@ -350,8 +350,9 @@ int history(char **inputt, char *buff) {
     if (strcmp(inputt[1], "-r") == 0) {
       char* historyFileLocation = inputt[2];
       read_history(historyFileLocation);
+
+      return 0;
     }
-    return 0;
   }
   if (inputt[1]) limit = atoi(inputt[1]);
   else limit = itemSize;
