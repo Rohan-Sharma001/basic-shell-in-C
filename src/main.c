@@ -51,6 +51,7 @@ DIR *currentDirStream = NULL;
 int main(int argc, char *argv[]) {
   if (argc == 1) {
     void using_history(void);
+    read_history(getenv("HISTFILE"));
     rl_attempted_completion_function = completerFn;
     setbuf(stdout, NULL);
 
@@ -68,6 +69,7 @@ int main(int argc, char *argv[]) {
         //executer(argarr, input);
       }
       free(input);
+      write_history(getenv("HISTFILE"));
     }
   } else {
     char *input = argv[1];
